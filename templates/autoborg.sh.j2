@@ -1,0 +1,92 @@
+#!/bin/bash
+export PATH=/bin:/usr/bin:/usr/local/bin
+
+# Note: this scripts uses an include/exclude pattern file,
+# use at least borg version 1.1.0
+#
+# Read local settings
+# Expected settings:
+# BORG_REPO
+# BORG_PASSPHRASE
+# BORG_KEY_FILE (optional)
+# BORG_EXINCLUDEFILE (optional)
+# BORG_CONDSCRIPT (optional)
+
+BORG_ENV_FILE=${BORG_ENV_FILE:-${HOME}/.config/borg/env}
+[ -f "$BORG_ENV_FILE" -a -r "$BORG_ENV_FILE" ] && \
+    source "$BORG_ENV_FILE"
+
+# some helpers and error handling:
+info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
+trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
+
+if [ -z "$BORG_REPO" ] ; then
+    info "Borg repository not defined"
+    exit 2
+fi
+
+if [ -n "$BORG_CONDSCRIPT" && -x "$BORG_CONDSCRIPT" ] ; then
+    $BORG_CONDSCRIPT
+else
+    :
+fi
+[ $? -ne 0 ] && {
+    echo "Condition for backup not satisfied, exiting." >&2
+    exit 1
+}
+
+[ -z "$BORG_EXINCLUDEFILE" ] && BORG_EXINCLUDEFILE=/dev/null
+
+info "Starting backup"
+
+# Backup the most important directories into an archive named after
+# the machine this script is currently running on:
+
+borg create  \
+    --umask 0027 \
+    --verbose \
+    --filter AME \
+    --list \
+    --stats \
+    --show-rc \
+    --compression zlib,6 \
+    --exclude-caches \
+    --patterns-from $BORG_EXINCLUDEFILE  \
+      \
+    ::'{hostname}-{now}' \
+    /
+
+backup_exit=$?
+
+{% if not brl_borg_noprunes %}
+info "Pruning repository"
+
+# Use the `prune` subcommand to maintain 7 daily, 5 weekly 12 monthly and
+# 2 yearly archives of THIS machine. The '{hostname}-' prefix is very
+# important to limit prune's operation to this machine's archives and not
+# apply to other machines' archives also:
+
+borg prune \
+    --list \
+    --prefix '{hostname}-' \
+    --show-rc  \
+    --keep-daily    {{ brl_borg_dailies }} \
+    --keep-weekly   {{ brl_borg_weeklies }} \
+    --keep-monthly  {{ brl_borg_monthlies }} \
+    --keep-yearly   {{ brl_borg_yearlies }}  \
+
+{% else %}
+/bin/true
+{% endif %}
+prune_exit=$?
+
+# use highest exit code as global exit code
+global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
+
+if [ ${global_exit} -ge 1 ]; then
+    info "Backup and/or Prune finished with a warning"
+else
+    info "Backup finished successfully"
+fi
+
+exit ${global_exit}

@@ -1,0 +1,34 @@
+# first includes, then excludes
+R /
+{% for i in brl_borg_includes %}
++ {{ i }}
+{% endfor %}
+{% if not brl_borg_backupall %}
++ /usr/local
+{% endif %}
+- /proc
+- /sys
+- /dev
+- /selinux
+- /cgroup
+{% if not brl_borg_backupall %}
+- /bin
+- /usr
+- /lib
+- /lib64
+{% else %}
+- /usr/tmp
+{% endif %}
+- /mnt
+- /media
+- /root/.cache
+- /home/*/.cache
+- /var/cache
+- /tmp
+- /var/tmp
+{% if not brl_borg_use_ssh %}
+- {{ brl_borg_path }}
+{% endif %}
+{% for e in brl_borg_excludes %}
+- {{ e }}
+{% endfor %}

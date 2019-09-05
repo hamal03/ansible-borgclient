@@ -1,0 +1,17 @@
+---
+brl_borg_version: "1.1.10"
+brl_borg_blobdir: "/data/ansibleblobs"
+brl_borg_use_ssh: True
+brl_borg_encmode: "repokey-blake2"
+brl_borg_combirepo: False
+brl_borg_hostalias: "borgbackupserver"
+brl_borg_includes: []
+brl_borg_excludes: []
+brl_borg_backupall: false
+brl_borg_repogroup: "adm"
+brl_borg_cronhour: "03"
+brl_borg_dailies: 7
+brl_borg_weeklies: 5
+brl_borg_monthlies: 12
+brl_borg_yearlies: 2
+brl_borg_noprunes: False

@@ -1,0 +1,6 @@
+#Atom editor trash directory
+.Trash-0/
+
+# Vim cache
+.*.sw?
+

@@ -1,0 +1,157 @@
+---
+
+- name: "Install BORG executable"
+  copy:
+    src: "{{brl_borg_blobdir}}/borg-linux64-{{brl_borg_version}}"
+    dest: /usr/local/bin/borg
+    mode: 0755
+    owner: root
+    group: root
+
+- name: "Create BORG config directory"
+  file:
+    name: "/root/.config/borg"
+    state: directory
+    mode: "0750"
+    owner: root
+    group: adm
+
+- name: "Set URI prefix for ssh access"
+  set_fact:
+    brl_borg_remote: "ssh://{{brl_borg_hostalias}}"
+  when: brl_borg_use_ssh
+
+- name: "Clear URI prefix for local access"
+  set_fact:
+    brl_borg_remote: ''
+  when: not brl_borg_use_ssh
+
+- name: "Set subdirectory name for separate repositories"
+  set_fact:
+    brl_borg_subdir: "{{ inventory_hostname|regex_replace('\\..*') }}"
+  when: not brl_borg_combirepo
+
+- name: "Clear subdirectory name for combined repositories"
+  set_fact:
+    brl_borg_subdir: ""
+  when: brl_borg_combirepo
+
+- name: "Copy BORG configfiles"
+  template:
+    src: "{{ item }}.j2"
+    dest: "/root/.config/borg/{{item}}"
+    mode: "0640"
+    owner: root
+    group: adm
+  with_items:
+    - env
+    - patterns
+
+- name: "Install backup script"
+  template:
+    src: "autoborg.sh.j2"
+    dest: "/usr/local/sbin/autoborg.sh"
+    mode: "0755"
+    owner: root
+    group: adm
+
+- block:
+
+  - name: "Create ssh key"
+    user:
+      name: root
+      generate_ssh_key: true
+      ssh_key_file: ".ssh/borg_id_rsa"
+
+  - name: "Get ssh pubic key"
+    slurp:
+      src: "~root/.ssh/borg_id_rsa.pub"
+    register: borg_ssh_key
+
+  - name: "Add key to authorized keys on server"
+    authorized_key:
+      user: "{{brl_borg_user|default('root')}}"
+      key: "{{borg_ssh_key.content|b64decode}}"
+      key_options: "command=\"borg serve --restrict-to-path {{brl_borg_path}}/{{brl_borg_subdir}}\""
+    delegate_to: "{{brl_borg_host}}"
+
+  - name: "Disable strict key checking for backup server"
+    blockinfile:
+      dest: "~root/.ssh/config"
+      create: true
+      marker: "### {mark} ANSIBLE BLOCK borgbackup ###"
+      content: |
+        Host {{ brl_borg_hostalias }}
+          HostName {{brl_borg_host}}
+          User {{brl_borg_user|default('root')}}
+          Port {{brl_borg_port|default('22')}}
+          StrictHostKeyChecking no
+          UserKnownHostsFile /dev/null
+          IdentityFile ~root/.ssh/borg_id_rsa
+
+  - set_fact:
+      brl_borg:
+        realpath: "{{brl_borg_path}}"
+    when: brl_borg_realpath is not defined
+
+  - name: "Create borg repodir"
+    file:
+      path: "{{brl_borg_realpath}}/{{brl_borg_subdir}}"
+      owner: "{{brl_borg_user|default('root')}}"
+      group: "{{brl_borg_repogroup}}"
+      mode: "02750"
+      state: directory
+    delegate_to: "{{brl_borg_host}}"
+
+  when: brl_borg_use_ssh
+
+- block:
+
+  - name: "Create local borg repodir"
+    file:
+      path: "{{brl_borg_path}}/{{brl_borg_subdir}}"
+      state: directory
+
+  - name: "Set local borg repodir permissions"
+    file:
+      path: "{{brl_borg_path}}/{{brl_borg_subdir}}"
+      owner: "{{brl_borg_user|default('root')}}"
+      group: "{{brl_borg_repogroup}}"
+      mode: "02750"
+    failed_when: False
+
+  when: not brl_borg_use_ssh
+
+- name: "Initialize borg repo (if needed)"
+  shell: >
+    source /root/.config/borg/env &&
+    borg list >/dev/null 2>&1 && {
+      [ -f /root/.config/borg/init_done ] ||
+      touch /root/.config/borg/init_done
+    } || {
+      borg init --umask 0027 -e {{brl_borg_encmode}} &&
+      touch /root/.config/borg/init_done
+    }
+  environment:
+    PATH: "/bin:/usr/bin:/usr/local/bin"
+  args:
+    creates: "/root/.config/borg/init_done"
+    executable: /bin/bash
+  check_mode: no
+
+- name: "Create directory for logging"
+  file:
+    path: /root/logs
+    state: directory
+    owner: root
+    group: adm
+    mode: 0750
+
+- name: "Create cron file"
+  cron:
+    name: "autoborg"
+    cron_file: borg_run
+    user: root
+    hour: "{{ brl_borg_cronhour  }}"
+    minute: "{{ 59 | random(seed=inventory_hostname) }}"
+    job: '/usr/local/sbin/autoborg.sh > /root/logs//borgbackup-`date +\%F`.log 2>&1'
