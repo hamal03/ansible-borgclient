@@ -135,7 +135,7 @@ If you want to use a separate password for every backup client but still not
 specify it every time, you could create a master passwword in a group variable
 and use the hostname as a salt in a password hash to generate unique
 passwords, like this:<br/>
-<tt>"{{ my\_master\_password | password\_hash('sha256', inventory\_hostname) }}"</tt/>
+<tt>"{{ my\_master\_password | password\_hash('sha256', inventory\_hostname) }}"</tt>
 
 #### brl\_borg\_path
 The path on the borg server where the backup repository is created. Below this
