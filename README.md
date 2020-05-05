@@ -94,6 +94,11 @@ preferably verify the download with PGP and copy it with the correct name to
 the blobdir, then apply the version in this variable. The current default is
 version 1.1.10.
 
+#### brl\_borg\_configdir
+Directory where the borg configuarion directory resides (defaults to 
+/root/.config). If it is non-default, a symbilic link will be made to it named
+/root/.config/borg.
+
 #### brl\_borg\_blobdir
 Directory on the ansible master node where the borg binary can be found
 (default: /data/ansibleblobs)

@@ -10,11 +10,18 @@
 
 - name: "Create BORG config directory"
   file:
-    name: "/root/.config/borg"
+    name: "{{brl_borg_configdir}}/borg"
     state: directory
     mode: "0750"
     owner: root
     group: adm
+
+- name: "Create symlink to condigdir"
+  file:
+    src: "{{brl_borg_configdir}}/borg"
+    path: "/root/.config/borg"
+    state: link
+  when: brl_borg_configdir != '/root/.config'
 
 - name: "Set URI prefix for ssh access"
   set_fact:
@@ -39,7 +46,7 @@
 - name: "Copy BORG configfiles"
   template:
     src: "{{ item }}.j2"
-    dest: "/root/.config/borg/{{item}}"
+    dest: "{{brl_borg_configdir}}/borg/{{item}}"
     mode: "0640"
     owner: root
     group: adm
@@ -124,18 +131,18 @@
 
 - name: "Initialize borg repo (if needed)"
   shell: >
-    source /root/.config/borg/env &&
+    source {{brl_borg_configdir}}/borg/env &&
     borg list >/dev/null 2>&1 && {
-      [ -f /root/.config/borg/init_done ] ||
-      touch /root/.config/borg/init_done
+      [ -f {{brl_borg_configdir}}/borg/init_done ] ||
+      touch {{brl_borg_configdir}}/borg/init_done
     } || {
       borg init --umask 0027 -e {{brl_borg_encmode}} &&
-      touch /root/.config/borg/init_done
+      touch {{brl_borg_configdir}}/borg/init_done
     }
   environment:
     PATH: "/bin:/usr/bin:/usr/local/bin"
   args:
-    creates: "/root/.config/borg/init_done"
+    creates: "{{brl_borg_configdir}}/borg/init_done"
     executable: /bin/bash
   check_mode: no
 
