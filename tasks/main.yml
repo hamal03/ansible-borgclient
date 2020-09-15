@@ -1,12 +1,14 @@
 ---
+- name: Enable the EPEL repository on EL
+  yum:
+    name: epel-release
+    state: present
+  when: ansible_os_family == "RedHat"
 
 - name: "Install BORG executable"
-  copy:
-    src: "{{brl_borg_blobdir}}/borg-linux64-{{brl_borg_version}}"
-    dest: /usr/local/bin/borg
-    mode: 0755
-    owner: root
-    group: root
+  package:
+    name: borgbackup
+    state: latest
 
 - name: "Create BORG config directory"
   file:
@@ -97,8 +99,7 @@
           IdentityFile ~root/.ssh/borg_id_rsa
 
   - set_fact:
-      brl_borg:
-        realpath: "{{brl_borg_path}}"
+      brl_borg_realpath: "{{brl_borg_path}}"
     when: brl_borg_realpath is not defined
 
   - name: "Create borg repodir"

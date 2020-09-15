@@ -19,16 +19,12 @@ positive for deduplication but prevends admins on one backup client to restore
 files of another client). The progress of the backup is logged to /root/logs
 on the backup client (see the brl\_borg\_combirepo variable).
 
-Using this role should not require gathering of facts.
+If this is installed for an Enterprise Linux client, the EPEL repository will
+be enabled for being able to install the borg software.
 
 ## Requirements
 
-The precompiled binary should be downloaded from
-https://github.com/borgbackup/borg/releases/ and placed in the *brl\_borg\_blobdir*
-directory (see below). The version number should be added to the file name
-(like *borg-linux64-1.1.10*). This requirement is in place because we can't
-assume that the client has unlimited internet access and can download the binary
-itself.
+None
 
 ## Dependencies
 
@@ -50,8 +46,6 @@ None
 ### Summary
 
 **brl\_borg\_use\_ssh**: access remote repository via ssh (default: True)<br/>
-**brl\_borg\_version**: Borg binary version to download (default 1.1.10)<br/>
-**brl\_borg\_blobdir**: Local directory where the binary can be found (default: /data/ansibleblobs)<br/>
 **brl\_borg\_host**: remote host (required with ssh)<br/>
 **brl\_borg\_user**: remote user (optional, recommended)<br/>
 **brl\_borg\_port**: SSH port to use (default port 22)<br/>
@@ -85,23 +79,10 @@ None
 This boolean defines a backup to a remote server via SSH or to a local
 directory. It defaults to using SSH.
 
-#### brl\_borg\_version
-Version of the borg binary to install. This role only installs the 64-bit
-Linux version. The binary is expected in the "blobdir" (see below) and the
-name needs to be "borg-linux64-*<version>*. If you want a different version
-installed, download it from  https://github.com/borgbackup/borg/releases/,
-preferably verify the download with PGP and copy it with the correct name to
-the blobdir, then apply the version in this variable. The current default is
-version 1.1.10.
-
 #### brl\_borg\_configdir
-Directory where the borg configuarion directory resides (defaults to 
+Directory where the borg configuarion directory resides (defaults to
 /root/.config). If it is non-default, a symbilic link will be made to it named
 /root/.config/borg.
-
-#### brl\_borg\_blobdir
-Directory on the ansible master node where the borg binary can be found
-(default: /data/ansibleblobs)
 
 #### brl\_borg\_host
 Host to connect to using SSH to start the borg server. Required when using
